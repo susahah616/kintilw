@@ -1,0 +1,56 @@
+name: Build iOS Cheat and Inject IPA
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: # Memungkinkan Anda menekan tombol "Run Workflow" secara manual
+
+jobs:
+  build-and-inject:
+    runs-on: macos-latest
+
+    steps:
+    - name: 📥 Checkout Code
+      uses: actions/checkout@v4
+
+    - name: 🔨 Compile iOS Dylib
+      run: |
+        cd ios_src
+        make
+        echo "✅ Dylib berhasil di-compile"
+
+    - name: ⚙️ Setup Azule (iOS Injector)
+      run: |
+        git clone https://github.com/Al4ise/Azule.git ~/Azule
+        chmod +x ~/Azule/azule
+        echo "✅ Azule siap digunakan"
+
+    - name: 💉 Inject Dylib into IPA
+      run: |
+        # Menggabungkan file IPA yang di-split (jika ada)
+        if [ -f "mlbb.ipa.001" ]; then
+          echo "Menggabungkan file IPA..."
+          cat mlbb.ipa.* > mlbb.ipa
+        fi
+        
+        # Script ini akan mencari file .ipa di folder utama repo
+        IPA_FILE=$(ls *.ipa | head -n 1)
+        
+        if [ -f "$IPA_FILE" ]; then
+          echo "Menyuntikkan cheat ke dalam: $IPA_FILE"
+          
+          # Azule akan menyuntikkan dylib langsung ke executable utama (legends.app)
+          # tanpa perlu melakukan rename manual pada UnityFramework
+          ~/Azule/azule -i "$IPA_FILE" -o . -n Mod_MLBB -f "$(pwd)/ios_src/libmlbb_cheat.dylib" -s
+          
+          echo "✅ Injeksi berhasil"
+        else
+          echo "❌ ERROR: File .ipa tidak ditemukan! Pastikan Anda meng-upload file .ipa ke repo."
+          exit 1
+        fi
+
+    - name: 🚀 Upload Mod IPA
+      uses: actions/upload-artifact@v4
+      with:
+        name: MLBB_iOS_Mod_ReadyToInstall
+        path: Mod_MLBB.ipa
