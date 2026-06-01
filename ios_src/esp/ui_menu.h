@@ -166,6 +166,15 @@ inline void ShowMenu()
             ImGui::Spacing();
             ImGui::TextWrapped(S("VG8gc2hvdyBtZW51IGFnYWluLCB0YXAgdGhlIGJvdHRvbS1sZWZ0IGJ1dHRvbi4=").c_str());
             ImGui::Separator();
+            ImGui::Spacing();
+            ImGui::TextColored(TEXT_PRIMARY, "Quick Access");
+            if (ImGui::Button("Open Account Menu", ImVec2(ImGui::GetContentRegionAvail().x, 44))) {
+                selectedTab = 4;
+            }
+            if (ImGui::Button("Reset to Guest Now", ImVec2(ImGui::GetContentRegionAvail().x, 44))) {
+                AccountManager::AutoResetAccount(true);
+                STEALTH_LOG(@"[Account] Quick access guest reset pressed from Home tab");
+            }
             ImGui::EndGroupPanel();
         }
         else if (selectedTab == 1) {

@@ -34,6 +34,10 @@ namespace AccountUI {
             ImGui::TextColored(TEXT_SECONDARY, "Account: (guest)");
         }
 
+        ImGui::TextColored(TEXT_SECONDARY, "Debug: accountPtr=%p, error=%s",
+            (void*)AccountManager::g_AccountData.memoryPtr,
+            AccountManager::GetErrorString().c_str());
+
         if (AccountManager::g_AccountData.resetInProgress) {
             ImGui::Spacing();
             ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "[*] RESET IN PROGRESS [*]");

@@ -1,6 +1,11 @@
 #pragma once
 #include <string>
 #include <vector>
+#include <cstdio>
+
+#ifdef __OBJC__
+#import <Foundation/Foundation.h>
+#endif
 
 inline std::string Base64Decode(const char* input) {
     static const unsigned char d[] = {
@@ -34,4 +39,15 @@ inline std::string S(const char* b64) {
     return Base64Decode(b64);
 }
 
-#define STEALTH_LOG(fmt, ...) ((void)0)
+#ifdef __OBJC__
+#define STEALTH_LOG(fmt, ...) do { \
+    NSString *message = [NSString stringWithFormat:(fmt), ##__VA_ARGS__]; \
+    fprintf(stderr, "%s\n", message.UTF8String); \
+    fflush(stderr); \
+} while (0)
+#else
+#define STEALTH_LOG(fmt, ...) do { \
+    fprintf(stderr, (fmt)"\n", ##__VA_ARGS__); \
+    fflush(stderr); \
+} while (0)
+#endif
