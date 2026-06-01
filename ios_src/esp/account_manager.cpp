@@ -1,5 +1,5 @@
 #include "account_manager.h"
-#include "esp/stealth.h"
+#include "stealth.h"
 #include "../Il2CppResolver.h"
 #include <ctime>
 #include <iostream>

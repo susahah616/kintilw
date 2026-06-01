@@ -84,7 +84,7 @@ void* MemoryThread(void* arg) {
 static UIWindow *FindActiveWindow(void) {
     UIWindow *window = nil;
 
-    #if __IPHONE_OS_VERSION_MAX_ALLOWED >= 150000
+    #if __IPHONE_OS_VERSION_MAX_ALLOWED >= 130000
     for (UIScene *scene in [UIApplication sharedApplication].connectedScenes) {
         if ([scene isKindOfClass:[UIWindowScene class]] &&
             ((UIWindowScene *)scene).activationState == UISceneActivationStateForegroundActive) {

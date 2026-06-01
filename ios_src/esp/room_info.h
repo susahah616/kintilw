@@ -1,6 +1,6 @@
 #pragma once
 #include <string>
-#include "esp/stealth.h"
+#include "stealth.h"
 #include "../Il2CppResolver.h"
 #include "../memory_internal.h"
 

@@ -6,7 +6,7 @@
 // ============================================================
 
 #include "account_manager.h"
-#include "esp/stealth.h"
+#include "stealth.h"
 #include "config.h"
 #include "ui_core.h"
 

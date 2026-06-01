@@ -13,15 +13,17 @@
 static UIWindow *GetActiveWindow(void) {
     UIWindow *window = nil;
 
-    #if __IPHONE_OS_VERSION_MAX_ALLOWED >= 150000
-    for (UIScene *scene in [UIApplication sharedApplication].connectedScenes) {
-        if ([scene isKindOfClass:[UIWindowScene class]] &&
-            ((UIWindowScene *)scene).activationState == UISceneActivationStateForegroundActive) {
-            for (UIWindow *w in ((UIWindowScene *)scene).windows) {
-                if (w.isKeyWindow) { window = w; break; }
+    #if __IPHONE_OS_VERSION_MAX_ALLOWED >= 130000
+    if (@available(iOS 13.0, *)) {
+        for (UIScene *scene in [UIApplication sharedApplication].connectedScenes) {
+            if ([scene isKindOfClass:[UIWindowScene class]] &&
+                ((UIWindowScene *)scene).activationState == UISceneActivationStateForegroundActive) {
+                for (UIWindow *w in ((UIWindowScene *)scene).windows) {
+                    if (w.isKeyWindow) { window = w; break; }
+                }
+                if (!window) window = ((UIWindowScene *)scene).windows.firstObject;
+                if (window) break;
             }
-            if (!window) window = ((UIWindowScene *)scene).windows.firstObject;
-            if (window) break;
         }
     }
     #endif

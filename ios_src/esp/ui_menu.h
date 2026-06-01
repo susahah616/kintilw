@@ -7,8 +7,8 @@
 #include "room_info.h"
 #include "account_ui.h"
 #include "account_manager.h"
-#include "esp/stealth.h"
-#include "esp/stream_detector.h"
+#include "stealth.h"
+#include "stream_detector.h"
 
 inline void SyncFeatureToESP() {
     g_ESPCfg.ESPLine      = Feature.ESPLine;
