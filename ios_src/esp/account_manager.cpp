@@ -212,11 +212,28 @@ namespace AccountManager {
         }
     }
     
+    static bool ValidateAccountPointer(uintptr_t ptr) {
+        if (!ptr || ptr < 0x100000000) {
+            return false;
+        }
+
+        uintptr_t namePtr = InternalMemory::Read<uintptr_t>(ptr + 0x30);
+        uintptr_t playerIdPtr = InternalMemory::Read<uintptr_t>(ptr + 0x48);
+
+        if ((namePtr && namePtr < 0x100000000) || (playerIdPtr && playerIdPtr < 0x100000000)) {
+            return false;
+        }
+
+        return true;
+    }
+
     // Memory reading helpers - implement based on your game's structure
     uintptr_t GetAccountPointerFromGame() {
-        if (g_AccountData.memoryPtr) {
+        if (g_AccountData.memoryPtr && ValidateAccountPointer(g_AccountData.memoryPtr)) {
             return g_AccountData.memoryPtr;
         }
+
+        g_AccountData.memoryPtr = 0;
 
         const char* images[] = { "Assembly-CSharp.dll", "Assembly-CSharp-firstpass.dll", nullptr };
         const char* namespaces[] = { "", "Battle", "Account", "Game", nullptr };
@@ -230,9 +247,13 @@ namespace AccountManager {
                         void* instance = nullptr;
                         Il2CppGetStaticFieldValue(images[i], namespaces[j], classes[k], fields[l], &instance);
                         if (instance) {
-                            g_AccountData.memoryPtr = (uintptr_t)instance;
-                            STEALTH_LOG(@"[Account] Found account singleton: %s.%s.%s in %s", namespaces[j], classes[k], fields[l], images[i]);
-                            return g_AccountData.memoryPtr;
+                            uintptr_t candidate = (uintptr_t)instance;
+                            if (ValidateAccountPointer(candidate)) {
+                                g_AccountData.memoryPtr = candidate;
+                                STEALTH_LOG(@"[Account] Found account singleton: %s.%s.%s in %s (ptr=%p)", namespaces[j], classes[k], fields[l], images[i], (void*)candidate);
+                                return g_AccountData.memoryPtr;
+                            }
+                            STEALTH_LOG(@"[Account] Invalid account singleton candidate: %s.%s.%s in %s (ptr=%p)", namespaces[j], classes[k], fields[l], images[i], (void*)candidate);
                         }
                     }
                 }
@@ -269,15 +290,21 @@ namespace AccountManager {
             return;
         }
 
-        // These offsets are examples and may need adjustment for the current patch.
-        InternalMemory::Write<uint64_t>(ptr + 0x10, 0); // clear account id
-        InternalMemory::Write<bool>(ptr + 0x20, false); // set logged in false
-        InternalMemory::Write<bool>(ptr + 0x21, g_AccountData.isGuest);  // set guest mode based on current target state
+        bool success = true;
+        success &= InternalMemory::Write<uint64_t>(ptr + 0x10, 0); // clear account id
+        success &= InternalMemory::Write<bool>(ptr + 0x20, false); // set logged in false
+        success &= InternalMemory::Write<bool>(ptr + 0x21, g_AccountData.isGuest);  // set guest mode based on current target state
+        success &= InternalMemory::Write<uintptr_t>(ptr + 0x30, 0); // clear account name pointer
+        success &= InternalMemory::Write<uintptr_t>(ptr + 0x48, 0); // clear player id pointer
+
+        if (!success) {
+            STEALTH_LOG(@"[Account] WriteAccountDataToGame failed: one or more memory writes did not succeed");
+        } else {
+            STEALTH_LOG(@"[Account] Wrote account reset data back to game memory");
+        }
 
         g_AccountData.isLoggedIn = false;
         g_AccountData.state = AccountState::Guest;
-
-        STEALTH_LOG(@"[Account] Wrote account reset data back to game memory");
     }
 }
 
