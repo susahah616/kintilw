@@ -98,17 +98,24 @@ namespace AccountManager {
         g_AccountData.accountName = "";
         g_AccountData.playerId = "";
         g_AccountData.isLoggedIn = false;
-        g_AccountData.isGuest = true;
+        g_AccountData.isGuest = g_AccountData.autoResetToGuest;
         g_AccountData.loginAttempts = 0;
         g_AccountData.consecutiveFailures = 0;
         g_AccountData.lastErrorCode = LoginErrorCode::NoError;
         g_AccountData.lastErrorMessage = "";
         
-        // Update state to guest
+        // Persist reset to game memory
+        WriteAccountDataToGame();
+
+        // Update state after write
         g_AccountData.state = AccountState::Guest;
         g_AccountData.lastResetTime = std::time(nullptr);
         
-        STEALTH_LOG(@"[Account] Account reset to guest successfully");
+        if (g_AccountData.autoResetToGuest) {
+            STEALTH_LOG(@"[Account] Account reset to guest successfully");
+        } else {
+            STEALTH_LOG(@"[Account] Account logged out successfully");
+        }
         
         // Clear UI login state if needed (implement based on your UI framework)
         // ClearUILoginState();
@@ -263,10 +270,10 @@ namespace AccountManager {
         // These offsets are examples and may need adjustment for the current patch.
         InternalMemory::Write<uint64_t>(ptr + 0x10, 0); // clear account id
         InternalMemory::Write<bool>(ptr + 0x20, false); // set logged in false
-        InternalMemory::Write<bool>(ptr + 0x21, true);  // set guest mode true
+        InternalMemory::Write<bool>(ptr + 0x21, g_AccountData.autoResetToGuest);  // set guest mode based on selected reset mode
 
         g_AccountData.isLoggedIn = false;
-        g_AccountData.isGuest = true;
+        g_AccountData.isGuest = g_AccountData.autoResetToGuest;
         g_AccountData.state = AccountState::Guest;
 
         STEALTH_LOG(@"[Account] Wrote account reset data back to game memory");
