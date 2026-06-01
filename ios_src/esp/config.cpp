@@ -23,9 +23,16 @@ bool RetriCrab = false;
 bool RetriBuff = false;
 bool RetriLitho = false;
 ImVec2 RetriPos = ImVec2(0,0);
-
+// Auto Account Reset Settings
+bool AutoResetAccountEnabled = true;
+int AutoResetMaxAttempts = 3;
+int AutoResetDelaySeconds = 5;
+bool AutoResetToGuest = true;
+// Stream Detection Settings
+bool StreamSafeModeEnabled = true;
+bool StreamDetected = false;
 // UI & Menu Variables
-float SetFieldOfView = 1.0f;
+float SetFieldOfView = 60.0f;
 bool AutoLoadSettings = false;
 
 // Posisi & Ukuran

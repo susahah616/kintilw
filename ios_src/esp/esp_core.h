@@ -37,6 +37,22 @@ inline void* GetCameraMain() {
     return nullptr;
 }
 
+inline void ApplyCameraFieldOfView(void* camera, float fov) {
+    if (!camera || fov <= 0.0f) return;
+
+    static void* set_fov_method = nullptr;
+    if (!set_fov_method) {
+        set_fov_method = Il2CppGetMethodOffset("UnityEngine.CoreModule.dll", "UnityEngine", "Camera", "set_fieldOfView", 1);
+        if (!set_fov_method) {
+            set_fov_method = Il2CppGetMethodOffset("UnityEngine.dll", "UnityEngine", "Camera", "set_fieldOfView", 1);
+        }
+    }
+    if (set_fov_method) {
+        auto setter = reinterpret_cast<void(*)(void*, float)>(set_fov_method);
+        setter(camera, fov);
+    }
+}
+
 
 
 inline bool UnityWorldToScreen(void* camera, const Vec3& world, Vec2& screen, float screenW, float screenH) {
@@ -95,6 +111,9 @@ inline void RenderESPCore() {
     
     // Dapatkan instance Camera.main dari Unity
     void* cameraMain = GetCameraMain();
+    if (cameraMain) {
+        ApplyCameraFieldOfView(cameraMain, clampf(SetFieldOfView, 30.0f, 120.0f));
+    }
     
     ImDrawList* drawList = ImGui::GetBackgroundDrawList();
     ImGuiIO& io = ImGui::GetIO();

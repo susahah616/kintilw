@@ -86,7 +86,14 @@ extern bool RetriCrab;
 extern bool RetriBuff;
 extern bool RetriLitho;
 extern ImVec2 RetriPos;
-
+// Auto Account Reset Settings
+extern bool AutoResetAccountEnabled;
+extern int AutoResetMaxAttempts;
+extern int AutoResetDelaySeconds;
+extern bool AutoResetToGuest;
+// Stream Detection Settings
+extern bool StreamSafeModeEnabled;
+extern bool StreamDetected;
 // UI & Menu Variables
 extern float SetFieldOfView;
 extern bool AutoLoadSettings;

@@ -41,10 +41,34 @@ inline bool SaveConfig() {
     file << "RetriLitho=" << RetriLitho << "\n";
     file << "RetriPosX=" << RetriPos.x << "\n";
     file << "RetriPosY=" << RetriPos.y << "\n";
+    file << "SetFieldOfView=" << SetFieldOfView << "\n";
+    file << "AutoResetAccountEnabled=" << AutoResetAccountEnabled << "\n";
+    file << "AutoResetMaxAttempts=" << AutoResetMaxAttempts << "\n";
+    file << "AutoResetDelaySeconds=" << AutoResetDelaySeconds << "\n";
+    file << "AutoResetToGuest=" << AutoResetToGuest << "\n";
     file << "window_scale=" << window_scale << "\n";
 
     file.close();
     return true;
+}
+
+inline bool LoadAutoLoadFlag() {
+    std::ifstream file("/private/var/mobile/mlbb_esp_config.ini");
+    if (!file.is_open()) return false;
+
+    std::string line;
+    while (std::getline(file, line)) {
+        size_t delim = line.find('=');
+        if (delim == std::string::npos) continue;
+
+        std::string key = line.substr(0, delim);
+        std::string val = line.substr(delim + 1);
+        if (key == "AutoLoadSettings") {
+            return atoi(val.c_str()) != 0;
+        }
+    }
+
+    return false;
 }
 
 inline bool LoadConfig() {
@@ -97,6 +121,11 @@ inline bool LoadConfig() {
         else if (key == "RetriLitho") RetriLitho = v;
         else if (key == "RetriPosX") RetriPos.x = f;
         else if (key == "RetriPosY") RetriPos.y = f;
+        else if (key == "SetFieldOfView") SetFieldOfView = f;
+        else if (key == "AutoResetAccountEnabled") AutoResetAccountEnabled = v;
+        else if (key == "AutoResetMaxAttempts") AutoResetMaxAttempts = v;
+        else if (key == "AutoResetDelaySeconds") AutoResetDelaySeconds = v;
+        else if (key == "AutoResetToGuest") AutoResetToGuest = v;
         else if (key == "window_scale") window_scale = (f > 0.4f && f < 2.0f) ? f : 1.0f;
     }
 

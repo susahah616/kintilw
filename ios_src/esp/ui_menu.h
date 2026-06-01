@@ -4,6 +4,11 @@
 #include "ui_core.h"
 #include "config_manager.h"
 #include "entity.h"
+#include "room_info.h"
+#include "account_ui.h"
+#include "account_manager.h"
+#include "esp/stealth.h"
+#include "esp/stream_detector.h"
 
 inline void SyncFeatureToESP() {
     g_ESPCfg.ESPLine      = Feature.ESPLine;
@@ -30,6 +35,7 @@ inline void SyncFeatureToESP() {
 inline void RenderRetriDot() {
     if (!AutoRetriEnabled) return;
 
+    static const std::string retriWindowId = S("YXV4X2J0bl8x");
     ImGui::SetNextWindowPos(RetriPos, ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize(ImVec2(80, 80), ImGuiCond_Always);
     ImGui::SetNextWindowBgAlpha(0.0f); 
@@ -42,7 +48,7 @@ inline void RenderRetriDot() {
     }
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-    if (ImGui::Begin("RetriDot", NULL, flags)) {
+    if (ImGui::Begin(retriWindowId.c_str(), NULL, flags)) {
         ImVec2 p = ImGui::GetCursorScreenPos();
         ImDrawList* draw_list = ImGui::GetWindowDrawList();
         
@@ -95,7 +101,8 @@ inline void ShowMenu()
     ImGui::SetNextWindowSize(menuSize, ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSizeConstraints(minSize, maxSize);
 
-    std::string strTittle = "@gigitoogood" + tittle;
+    std::string strTittle = S("bWVudS0=");
+    strTittle += tittle;
     if (ImGui::Begin(strTittle.c_str(), &bShowMenu, ImGuiWindowFlags_NoCollapse)) {
         
         menuPos = ImGui::GetWindowPos();
@@ -105,8 +112,8 @@ inline void ShowMenu()
         ImGui::BeginChild("sidebar", ImVec2(SIDEBAR_WIDTH, 0), true, ImGuiWindowFlags_NoScrollbar);
         
         static int selectedTab = 0;
-        const char* tabs[] = {"Home", "Visual", "Auto Retri", "Minimap", "Settings"};
-        for (int i = 0; i < 5; ++i) {
+        const char* tabs[] = {"Home", "Visual", "Auto Retri", "Minimap", "Account", "Settings"};
+        for (int i = 0; i < 6; ++i) {
             if (ImGui::Button(tabs[i], ImVec2(ImGui::GetContentRegionAvail().x, 45))) {
                 selectedTab = i;
             }
@@ -119,13 +126,30 @@ inline void ShowMenu()
         ImGui::BeginChild("content", ImVec2(0, 0), true);
 
         if (selectedTab == 0) {
-            ImGui::BeginGroupPanel(" INFO MOD", ImVec2(ImGui::GetContentRegionAvail().x, 0));
+            RoomInfo roomInfo = ReadRoomInfoFromGame();
+
+            ImGui::BeginGroupPanel(S("SW5mbyA=").c_str(), ImVec2(ImGui::GetContentRegionAvail().x, 0));
             ImGui::TextColored(TEXT_PRIMARY, "Author   : gigi");
             ImGui::TextColored(TEXT_PRIMARY, "Version  : 3.0");
             ImGui::TextColored(TEXT_PRIMARY, "Status   : -");
             ImGui::Spacing();
-            if (ImGui::Button("CODE BREAKER GROUP", ImVec2(ImGui::GetContentRegionAvail().x, 48))) {
+            if (ImGui::Button(S("SGVscCBjZW50ZXI=").c_str(), ImVec2(ImGui::GetContentRegionAvail().x, 48))) {
                 // Telegram
+            }
+            ImGui::EndGroupPanel();
+
+            ImGui::Spacing();
+            ImGui::BeginGroupPanel(S("TWF0Y2ggSW5mbw==").c_str(), ImVec2(ImGui::GetContentRegionAvail().x, 0));
+            if (roomInfo.valid) {
+                ImGui::Text("Phase: %s", roomInfo.phase.c_str());
+                ImGui::Text("Best Hero: %s", roomInfo.bestHeroName.c_str());
+                ImGui::Text("Winrate: %.1f%%", roomInfo.winRate * 100.0f);
+                if (roomInfo.bestHeroId != 0) {
+                    ImGui::Text("Best Hero ID: %d", roomInfo.bestHeroId);
+                }
+            } else {
+                ImGui::TextColored(TEXT_SECONDARY, S("Um9vbSBpbmZvIHVudmFpbGFibGUu").c_str());
+                ImGui::TextColored(TEXT_SECONDARY, S("TWFrZSBzdXJlIG1hdGNoIHNldHVwIGlzIGFjdGl2ZS4=").c_str());
             }
             ImGui::EndGroupPanel();
 
@@ -140,7 +164,7 @@ inline void ShowMenu()
             }
 
             ImGui::Spacing();
-            ImGui::TextWrapped("To show menu again, tap the CODE BREAKER button at bottom-left.");
+            ImGui::TextWrapped(S("VG8gc2hvdyBtZW51IGFnYWluLCB0YXAgdGhlIGJvdHRvbS1sZWZ0IGJ1dHRvbi4=").c_str());
             ImGui::Separator();
             ImGui::EndGroupPanel();
         }
@@ -160,7 +184,8 @@ inline void ShowMenu()
             ImGui::EndGroupPanel();
             
             ImGui::BeginGroupPanel("Drone View", ImVec2(0, 0));
-            ModernSlider("##DroneView", &SetFieldOfView, 0, 60, "%.1f");
+            ModernSlider("##DroneView", &SetFieldOfView, 30, 120, "%.1f");
+            ImGui::Text("Drone FOV setting.");
             ImGui::EndGroupPanel();
             ImGui::EndChild();
 
@@ -185,8 +210,8 @@ inline void ShowMenu()
             float columnWidth = (ImGui::GetContentRegionAvail().x - 8) / 2;
             ImGui::BeginChild("RetriLeft", ImVec2(columnWidth, 0), true);
             ImGui::BeginGroupPanel("Auto Retri Master", ImVec2(0, 0));
-            ModernCheckbox("Enable Auto Retri", &AutoRetriEnabled);
-            ImGui::SameLine(); MetricsHelpMarker("Automatically casts Retribution on selected targets when their HP falls below your Retribution damage.");
+            ModernCheckbox(S("RW5hYmxlIEF1dG8gQWN0aW9u").c_str(), &AutoRetriEnabled);
+            ImGui::SameLine(); MetricsHelpMarker(S("QXV0b21hdGljYWxseSBjYXN0cyBhYmlsaXR5IG9uIHNlbGVjdGVkIHRhcmdldHMgd2hlbiB0aGVpciBIVEwgZmFsbHMgYmVsb3cgeW91ciBtb2JpbGUgYXQgdGhlIGJ1dHRvbi4=").c_str());
             ImGui::Spacing();
             ImGui::Separator();
             ImGui::Spacing();
@@ -201,7 +226,7 @@ inline void ShowMenu()
             ImGui::SameLine();
             ImGui::BeginChild("RetriRight", ImVec2(0, 0), true);
             ImGui::BeginGroupPanel("Info", ImVec2(0, 0));
-            ImGui::TextWrapped("Aktifkan Auto Retri, lalu geser titik merah 'R' ke atas tombol Retribution Anda di layar.");
+            ImGui::TextWrapped(S("RW5hYmxlIGF1dG8gYWN0aW9uIGFuZCBwb3NpdGlvbiB0aGUgcmVkdCBjb3JlIG5lYXIgZW5hYmxpbmcgYnV0dG9uLg==").c_str());
             ImGui::EndGroupPanel();
             ImGui::EndChild();
         }
@@ -227,6 +252,10 @@ inline void ShowMenu()
             ImGui::EndChild();
         }
         else if (selectedTab == 4) {
+            // Account Management Tab
+            AccountUI::RenderAccountMenu();
+        }
+        else if (selectedTab == 5) {
             ImGui::BeginChild("KontenSettings", ImVec2(0, 0), true);
             ImGui::BeginGroupPanel("Global Settings", ImVec2(0, 0));
             
@@ -241,6 +270,19 @@ inline void ShowMenu()
             ModernSlider("Screen Scale", &Feature.ESPScale, 0.5f, 3.0f, "%.2f");
             Feature.ESPScale = clampf(Feature.ESPScale, 0.5f, 3.0f);
             ImGui::TextWrapped("Screen offset otomatis terdeteksi dari safe area iOS (notch/Dynamic Island).");
+            
+            ImGui::Spacing();
+            ImGui::Separator();
+            ImGui::Spacing();
+            
+            ImGui::TextColored(ACCENT_RED, "Stream Protection");
+            
+            StreamDetected = StreamDetector::IsStreaming();
+            ImVec4 streamColor = StreamDetected ? ImVec4(1.0f, 0.2f, 0.2f, 1.0f) : ImVec4(0.2f, 1.0f, 0.2f, 1.0f);
+            ImGui::TextColored(streamColor, StreamDetected ? "STREAM DETECTED" : "No stream");
+            
+            ModernCheckbox("Auto-Hide on Stream", &StreamSafeModeEnabled);
+            ImGui::SameLine(); MetricsHelpMarker("Automatically hide overlay when screen recording or AirPlay is detected.");
             
             ImGui::Spacing();
             ImGui::Separator();

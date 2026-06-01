@@ -3,6 +3,8 @@
 #import "imgui/backends/imgui_impl_metal.h"
 
 // Include ESP
+#include "esp/stealth.h"
+#include "esp/stream_detector.h"
 #include "esp/ui_menu.h"
 #include "esp/esp_core.h"
 #include "esp/esp_player.h"
@@ -94,19 +96,19 @@ static UIWindow *GetActiveWindow(void) {
 - (void)setupMetal {
     self.device = MTLCreateSystemDefaultDevice();
     if (!self.device) {
-        NSLog(@"[Cheat] Metal device unavailable. Overlay disabled.");
+        STEALTH_LOG(@"[Cheat] Metal device unavailable. Overlay disabled.");
         return;
     }
 
     self.commandQueue = [self.device newCommandQueue];
     if (!self.commandQueue) {
-        NSLog(@"[Cheat] Could not create Metal command queue. Overlay disabled.");
+        STEALTH_LOG(@"[Cheat] Could not create Metal command queue. Overlay disabled.");
         return;
     }
 
     self.mtkView = [[MTKView alloc] initWithFrame:self.bounds device:self.device];
     if (!self.mtkView) {
-        NSLog(@"[Cheat] Failed to create MTKView.");
+        STEALTH_LOG(@"[Cheat] Failed to create MTKView.");
         return;
     }
 
@@ -162,7 +164,7 @@ static UIWindow *GetActiveWindow(void) {
 
 - (void)setupImGui {
     if (!self.device) {
-        NSLog(@"[Cheat] skip setupImGui: Metal device is nil.");
+        STEALTH_LOG(@"[Cheat] skip setupImGui: Metal device is nil.");
         return;
     }
 
@@ -179,7 +181,7 @@ static UIWindow *GetActiveWindow(void) {
         io.FontGlobalScale = 1.0f;
         
         if (!ImGui_ImplMetal_Init(self.device)) {
-            NSLog(@"[Cheat] ImGui_ImplMetal_Init failed.");
+            STEALTH_LOG(@"[Cheat] ImGui_ImplMetal_Init failed.");
         }
         
         // Set device untuk icon loader (agar pakai device yang sama, bukan MTLCreateSystemDefaultDevice)
@@ -189,7 +191,7 @@ static UIWindow *GetActiveWindow(void) {
         io.DisplaySize.x = self.bounds.size.width;
         io.DisplaySize.y = self.bounds.size.height;
     } @catch (NSException *ex) {
-        NSLog(@"[Cheat] setupImGui exception: %@", ex);
+        STEALTH_LOG(@"[Cheat] setupImGui exception: %@", ex);
     }
 }
 
@@ -270,9 +272,17 @@ static UIWindow *GetActiveWindow(void) {
         ImGui_ImplMetal_NewFrame(renderPassDescriptor);
         ImGui::NewFrame();
         
-        // Render UI
-        ShowMenu();
-        RenderRetriDot();
+        // Stream detection: hide overlay if streaming and stream safe mode is enabled
+        bool shouldHideOverlay = StreamSafeModeEnabled && StreamDetector::IsStreaming();
+        
+        if (!shouldHideOverlay) {
+            // Render UI
+            ShowMenu();
+            RenderRetriDot();
+        }
+        
+        // Hide toggle button when streaming
+        self.toggleButton.hidden = bShowMenu || shouldHideOverlay;
         
         // Sinkronisasi status tombol toggle native setiap frame
         // Panggil Menu UI

@@ -6,6 +6,9 @@
 #include <unistd.h>
 #include "memory_internal.h"
 #include "esp/entity.h"
+#include "esp/account_manager.h"
+#include "esp/config_manager.h"
+#include "esp/stealth.h"
 
 #import "ImGuiOverlay.h"
 
@@ -16,19 +19,35 @@ static int g_UISetupAttempts = 0;
 static const int kMaxUISetupAttempts = 30;
 
 void* MemoryThread(void* arg) {
-    NSLog(@"[Cheat] Memory Thread Started!");
+    STEALTH_LOG(@"[Cheat] Memory Thread Started!");
     
     // Tunggu sampai Il2Cpp berhasil di-attach
     while (!Il2CppAttach()) {
         sleep(2);
     }
     
-    NSLog(@"[Cheat] Il2Cpp Attached Successfully!");
+    STEALTH_LOG(@"[Cheat] Il2Cpp Attached Successfully!");
+    
+    // Initialize Account Manager
+    AccountManager::Initialize();
+    STEALTH_LOG(@"[Account] Account Manager initialized");
+
+    if (LoadAutoLoadFlag()) {
+        if (LoadConfig()) {
+            AccountManager::g_AccountData.autoResetEnabled = AutoResetAccountEnabled;
+            AccountManager::g_AccountData.maxLoginAttempts = AutoResetMaxAttempts;
+            AccountManager::g_AccountData.resetDelaySeconds = AutoResetDelaySeconds;
+            AccountManager::g_AccountData.autoResetToGuest = AutoResetToGuest;
+            STEALTH_LOG(@"[Config] Auto-loaded settings from config file.");
+        } else {
+            STEALTH_LOG(@"[Config] Auto-load failed: unable to open config file.");
+        }
+    }
     
     // SANGAT PENTING: Tunggu game sampai benar-benar masuk ke menu/loading screen
     // Jika kita memanggil Il2CppGetStaticFieldValue terlalu cepat, Unity akan mencoba
     // menginisialisasi BattleManager sebelum engine siap, yang menyebabkan EXC_BAD_ACCESS (Crash).
-    NSLog(@"[Cheat] Waiting 15 seconds for Unity engine to boot...");
+    STEALTH_LOG(@"[Cheat] Waiting 15 seconds for Unity engine to boot...");
     sleep(15);
     
     while(true) {
@@ -96,17 +115,17 @@ static UIWindow *FindActiveWindow(void) {
 
 void SetupUI() {
     if (g_UISetupAttempts++ >= kMaxUISetupAttempts) {
-        NSLog(@"[Cheat] SetupUI failed: maximum retries reached.");
+        STEALTH_LOG(@"[Cheat] SetupUI failed: maximum retries reached.");
         return;
     }
 
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         UIWindow *window = FindActiveWindow();
         if (window) {
-            NSLog(@"[Cheat] UIWindow found. Initializing UI Overlay...");
+            STEALTH_LOG(@"[Cheat] UIWindow found. Initializing UI Overlay...");
             [ImGuiOverlay sharedOverlay];
         } else {
-            NSLog(@"[Cheat] UIWindow not ready yet. Retrying... (%d)", g_UISetupAttempts);
+            STEALTH_LOG(@"[Cheat] UIWindow not ready yet. Retrying... (%d)", g_UISetupAttempts);
             SetupUI();
         }
     });
@@ -116,10 +135,15 @@ void SetupUI() {
 // sesaat setelah libmlbb_cheat.dylib berhasil di-load oleh iOS
 __attribute__((constructor))
 void InitCheat() {
-    NSLog(@"[Cheat] Dylib Injected Successfully!");
+    STEALTH_LOG(@"[Cheat] Dylib Injected Successfully!");
     
     // Setup UI di Main Thread dengan retry mechanism
     SetupUI();
+
+    // Attempt account singleton lookup on main thread to support new patch names
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        AccountManager::ReadAccountDataFromGame();
+    });
 
     // Jalankan Memory Scanner di background thread
     pthread_t ptid;
