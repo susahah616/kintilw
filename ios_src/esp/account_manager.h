@@ -70,8 +70,8 @@ namespace AccountManager {
     // Check if login failed and trigger auto-reset if needed
     bool CheckLoginFailure(LoginErrorCode errorCode, const std::string& errorMessage = "");
     
-    // Auto reset account to guest
-    void AutoResetAccount();
+    // Auto reset account to guest or logout
+    void AutoResetAccount(bool forceGuest = false);
     
     // Update account state
     void SetAccountState(AccountState newState);

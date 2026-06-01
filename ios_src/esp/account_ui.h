@@ -114,7 +114,7 @@ namespace AccountUI {
         
         // Manual reset button
         if (ImGui::Button("Reset to Guest Now", ImVec2(ImGui::GetContentRegionAvail().x, 40))) {
-            AccountManager::AutoResetAccount();
+            AccountManager::AutoResetAccount(true);
             STEALTH_LOG(@"[Account] Manual reset triggered from UI");
         }
         
