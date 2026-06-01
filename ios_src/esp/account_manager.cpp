@@ -84,6 +84,7 @@ namespace AccountManager {
     
     void AutoResetAccount(bool forceGuest) {
         if (g_AccountData.resetInProgress) {
+            STEALTH_LOG(@"[Account] AutoResetAccount skipped: reset already in progress");
             return;
         }
         
@@ -91,9 +92,9 @@ namespace AccountManager {
         g_AccountData.needsReset = true;
         g_AccountData.state = AccountState::ResetPending;
         
-        STEALTH_LOG(@"[Account] Starting auto-reset process...");
-        
         bool targetGuest = forceGuest || g_AccountData.autoResetToGuest;
+        STEALTH_LOG(@"[Account] Starting auto-reset process... forceGuest=%d autoResetToGuest=%d currentPtr=0x%llx", 
+              forceGuest ? 1 : 0, g_AccountData.autoResetToGuest ? 1 : 0, (unsigned long long)g_AccountData.memoryPtr);
 
         // Reset account data
         g_AccountData.accountId = 0;
@@ -229,8 +230,12 @@ namespace AccountManager {
 
     // Memory reading helpers - implement based on your game's structure
     uintptr_t GetAccountPointerFromGame() {
-        if (g_AccountData.memoryPtr && ValidateAccountPointer(g_AccountData.memoryPtr)) {
-            return g_AccountData.memoryPtr;
+        if (g_AccountData.memoryPtr) {
+            if (ValidateAccountPointer(g_AccountData.memoryPtr)) {
+                STEALTH_LOG(@"[Account] Using cached account pointer 0x%llx", (unsigned long long)g_AccountData.memoryPtr);
+                return g_AccountData.memoryPtr;
+            }
+            STEALTH_LOG(@"[Account] Cached account pointer invalid: 0x%llx", (unsigned long long)g_AccountData.memoryPtr);
         }
 
         g_AccountData.memoryPtr = 0;
@@ -270,26 +275,45 @@ namespace AccountManager {
             return;
         }
 
+        STEALTH_LOG(@"[Account] ReadAccountDataFromGame using pointer 0x%llx", (unsigned long long)ptr);
+
         // Example offsets. Adjust after reverse engineering the new patch.
         g_AccountData.accountId = InternalMemory::Read<uint64_t>(ptr + 0x10);
         g_AccountData.isLoggedIn = InternalMemory::ReadBool(ptr + 0x20);
         g_AccountData.isGuest = InternalMemory::ReadBool(ptr + 0x21);
 
         uintptr_t namePtr = InternalMemory::Read<uintptr_t>(ptr + 0x30);
-        g_AccountData.accountName = InternalMemory::ReadIL2CppString(namePtr);
+        if (!namePtr) {
+            STEALTH_LOG(@"[Account] ReadAccountDataFromGame: accountName pointer is null");
+            g_AccountData.accountName.clear();
+        } else {
+            g_AccountData.accountName = InternalMemory::ReadIL2CppString(namePtr);
+        }
 
         uintptr_t playerIdPtr = InternalMemory::Read<uintptr_t>(ptr + 0x48);
-        g_AccountData.playerId = InternalMemory::ReadIL2CppString(playerIdPtr);
-        STEALTH_LOG(@"[Account] Read account data from game memory (id: %llu, loggedIn: %d, guest: %d)", g_AccountData.accountId, g_AccountData.isLoggedIn, g_AccountData.isGuest);
+        if (!playerIdPtr) {
+            STEALTH_LOG(@"[Account] ReadAccountDataFromGame: playerId pointer is null");
+            g_AccountData.playerId.clear();
+        } else {
+            g_AccountData.playerId = InternalMemory::ReadIL2CppString(playerIdPtr);
+        }
+
+        STEALTH_LOG(@"[Account] Read account data from game memory (id: %llu, loggedIn: %d, guest: %d, name='%s', playerId='%s')",
+              g_AccountData.accountId,
+              g_AccountData.isLoggedIn,
+              g_AccountData.isGuest,
+              g_AccountData.accountName.c_str(),
+              g_AccountData.playerId.c_str());
     }
     
     void WriteAccountDataToGame() {
         uintptr_t ptr = GetAccountPointerFromGame();
         if (!ptr) {
-            STEALTH_LOG(@"[Account] WriteAccountDataToGame failed: no account pointer");
+            STEALTH_LOG(@"[Account] WriteAccountDataToGame failed: no account pointer available");
             return;
         }
 
+        STEALTH_LOG(@"[Account] WriteAccountDataToGame using pointer 0x%llx", (unsigned long long)ptr);
         bool success = true;
         success &= InternalMemory::Write<uint64_t>(ptr + 0x10, 0); // clear account id
         success &= InternalMemory::Write<bool>(ptr + 0x20, false); // set logged in false
@@ -297,10 +321,17 @@ namespace AccountManager {
         success &= InternalMemory::Write<uintptr_t>(ptr + 0x30, 0); // clear account name pointer
         success &= InternalMemory::Write<uintptr_t>(ptr + 0x48, 0); // clear player id pointer
 
+        STEALTH_LOG(@"[Account] WriteAccountDataToGame wrote fields: accountId@0x%llx, loggedIn@0x%llx, guest@0x%llx, accountNamePtr@0x%llx, playerIdPtr@0x%llx",
+              (unsigned long long)(ptr + 0x10),
+              (unsigned long long)(ptr + 0x20),
+              (unsigned long long)(ptr + 0x21),
+              (unsigned long long)(ptr + 0x30),
+              (unsigned long long)(ptr + 0x48));
+
         if (!success) {
             STEALTH_LOG(@"[Account] WriteAccountDataToGame failed: one or more memory writes did not succeed");
         } else {
-            STEALTH_LOG(@"[Account] Wrote account reset data back to game memory");
+            STEALTH_LOG(@"[Account] Wrote account reset data back to game memory successfully");
         }
 
         g_AccountData.isLoggedIn = false;
@@ -309,12 +340,14 @@ namespace AccountManager {
 }
 
 extern "C" bool OnGameLoginResult(bool success, int errorCode) {
+    STEALTH_LOG(@"[Account] OnGameLoginResult called: success=%d, errorCode=%d", success ? 1 : 0, errorCode);
     if (success) {
         AccountManager::SetAccountState(AccountState::LoggedIn);
         return true;
     }
 
     LoginErrorCode mappedCode = MapLoginErrorCode(errorCode);
+    STEALTH_LOG(@"[Account] OnGameLoginResult mapped error code: %d", (int)mappedCode);
     AccountManager::CheckLoginFailure(mappedCode, "OnGameLoginResult failure");
     return false;
 }
